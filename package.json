@@ -1,0 +1,13 @@
+{
+  "name": "llm-translate",
+  "version": "1.0.0",
+  "description": "LLM-powered web page translator Chrome extension",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}
