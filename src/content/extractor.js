@@ -84,10 +84,81 @@
       return segments;
     },
 
+    MATH_SELECTORS: [
+      'mjx-container', '[class*="MathJax"]', '.katex', '.katex-display',
+      'math', '.ltx_Math', '.ltx_equationgroup', '.ltx_eqn_table',
+      '.ltx_equation', '[data-latex]',
+    ].join(','),
+
+    _getMathText(el) {
+      const dataLatex = el.getAttribute('data-latex');
+      if (dataLatex && dataLatex.trim()) return dataLatex.trim();
+
+      const annotation = el.querySelector('annotation[encoding="application/x-tex"]');
+      if (annotation) return annotation.textContent.trim();
+
+      // Fallback: clone and remove annotation/script elements to get clean text
+      const clone = el.cloneNode(true);
+      clone.querySelectorAll('annotation, script, style, [aria-hidden="true"]').forEach(e => e.remove());
+      const clean = clone.textContent.trim();
+      return clean || el.textContent.trim();
+    },
+
+    splitByMath(node) {
+      if (!node.querySelector(this.MATH_SELECTORS)) return null;
+
+      const chunks = [];
+      let currentText = '';
+      const self = this;
+
+      function walk(el) {
+        for (const child of el.childNodes) {
+          if (child.nodeType === Node.TEXT_NODE) {
+            currentText += child.textContent;
+          } else if (child.nodeType === Node.ELEMENT_NODE) {
+            if (child.matches && child.matches(self.MATH_SELECTORS)) {
+              if (currentText.trim()) {
+                chunks.push({ text: currentText });
+                currentText = '';
+              }
+              chunks.push({
+                mathNode: child.cloneNode(true),
+                mathText: self._getMathText(child),
+              });
+            } else if (child.querySelector && child.querySelector(self.MATH_SELECTORS)) {
+              walk(child);
+            } else {
+              currentText += child.textContent;
+            }
+          }
+        }
+      }
+
+      walk(node);
+      if (currentText.trim()) {
+        chunks.push({ text: currentText });
+      }
+
+      return chunks.some(c => c.mathNode) ? chunks : null;
+    },
+
+    _removeAncestorDuplicates(nodes, root) {
+      const nodeSet = new Set(nodes);
+      return nodes.filter(node => {
+        let parent = node.parentElement;
+        while (parent && parent !== root) {
+          if (nodeSet.has(parent)) return false;
+          parent = parent.parentElement;
+        }
+        return true;
+      });
+    },
+
     extractSegments(root, scope) {
       const container = scope === 'full' ? root : this.findMainContent(root);
       const nodes = this.collectTextNodes(container);
-      return this.segmentNodes(nodes);
+      const deduped = this._removeAncestorDuplicates(nodes, container);
+      return this.segmentNodes(deduped);
     },
   };
 })();

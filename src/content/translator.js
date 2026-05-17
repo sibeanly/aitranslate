@@ -41,20 +41,59 @@
 
     async _translateSegment(segment) {
       for (const node of segment.nodes) {
-        const text = node.textContent.trim();
-        if (!text) continue;
-
         try {
-          const response = await chrome.runtime.sendMessage({
-            type: 'translate',
-            text: text,
-          });
+          const chunks = LLMTranslate.Extractor.splitByMath(node);
 
-          if (response && response.success) {
-            LLMTranslate.Renderer.renderTranslation(node, response.translated);
+          if (!chunks) {
+            // No math: translate normally
+            const text = node.textContent.trim();
+            if (!text) continue;
+            const response = await chrome.runtime.sendMessage({
+              type: 'translate',
+              text: text,
+            });
+            if (response && response.success) {
+              LLMTranslate.Renderer.renderTranslation(node, response.translated);
+            } else {
+              LLMTranslate.Renderer.renderError(node, response ? response.error : 'Unknown error');
+            }
           } else {
-            const errorMsg = response ? response.error : 'Unknown error';
-            LLMTranslate.Renderer.renderError(node, errorMsg);
+            // Has math: translate only text chunks, keep math as-is
+            const textIndices = [];
+            const translatableTexts = [];
+            for (let i = 0; i < chunks.length; i++) {
+              if (chunks[i].text) {
+                const t = chunks[i].text.trim();
+                if (t.length > 2) {
+                  textIndices.push(i);
+                  translatableTexts.push(t);
+                }
+              }
+            }
+
+            if (translatableTexts.length > 0) {
+              // Translate all text chunks in parallel
+              const translations = await Promise.all(
+                translatableTexts.map(t =>
+                  chrome.runtime.sendMessage({ type: 'translate', text: t })
+                )
+              );
+
+              // Reassemble: interleave translations with cloned math DOM.
+              let ti = 0;
+              const textIndexSet = new Set(textIndices);
+              const resultChunks = chunks.map((chunk, i) => {
+                if (chunk.text && textIndexSet.has(i)) {
+                  const resp = translations[ti++];
+                  return { text: resp && resp.success ? resp.translated : chunk.text };
+                }
+                if (chunk.mathNode) return { mathNode: chunk.mathNode };
+                if (chunk.text && !textIndexSet.has(i)) return { text: chunk.text };
+                return { text: '' };
+              });
+
+              LLMTranslate.Renderer.renderStructuredTranslation(node, resultChunks);
+            }
           }
         } catch (err) {
           LLMTranslate.Renderer.renderError(node, err.message || 'Translation failed');

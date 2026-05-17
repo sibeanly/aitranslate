@@ -155,6 +155,24 @@ describe('segmentNodes', () => {
   });
 });
 
+// ── splitByMath ────────────────────────────────────────────────────
+
+describe('splitByMath', () => {
+  test('returns text chunks and math DOM chunks for arxiv-style inline math', () => {
+    const p = document.createElement('p');
+    p.innerHTML = 'The model <span class="ltx_Math"><math><mi>π</mi><mn>0.5</mn></math></span> generalizes.';
+
+    const chunks = getExtractor().splitByMath(p);
+
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0]).toEqual({ text: 'The model ' });
+    expect(chunks[1].mathNode).toBeInstanceOf(Element);
+    expect(chunks[1].mathNode.className).toBe('ltx_Math');
+    expect(chunks[1].mathText).toBe('π0.5');
+    expect(chunks[2]).toEqual({ text: ' generalizes.' });
+  });
+});
+
 // ── extractSegments ───────────────────────────────────────────────
 
 describe('extractSegments', () => {

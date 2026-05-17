@@ -14,6 +14,15 @@
     </div>
 
     <div class="section">
+      <label for="apiProvider">API 提供商</label>
+      <select id="apiProvider">
+        <option value="openai">OpenAI</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="custom">自定义</option>
+      </select>
+    </div>
+
+    <div class="section">
       <label for="apiEndpoint">API 端点</label>
       <input type="text" id="apiEndpoint" placeholder="https://api.openai.com/v1/chat/completions">
     </div>
@@ -53,6 +62,7 @@
     <div class="actions">
       <button id="translateBtn" class="btn btn-primary">翻译当前页面</button>
       <button id="restoreBtn" class="btn btn-secondary">还原</button>
+      <button id="testBtn" class="btn btn-secondary">测试连接</button>
     </div>
 
     <div id="status" class="status"></div>

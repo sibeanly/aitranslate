@@ -42,6 +42,43 @@ describe('Renderer', () => {
     });
   });
 
+  describe('renderStructuredTranslation', () => {
+    test('preserves cloned math markup between translated text chunks', () => {
+      const originalNode = document.getElementById('original');
+      const math = document.createElement('span');
+      math.className = 'ltx_Math';
+      math.innerHTML = '<math><mi>π</mi><mn>0.5</mn></math>';
+
+      window.LLMTranslate.Renderer.renderStructuredTranslation(originalNode, [
+        { text: '该架构能够表示' },
+        { mathNode: math },
+        { text: '的分布。' },
+      ]);
+
+      const target = document.querySelector('.llm-translate-target');
+      const renderedMath = target.querySelector('.ltx_Math math');
+      expect(renderedMath).not.toBeNull();
+      expect(target.textContent).toBe('该架构能够表示 π0.5 的分布。');
+      expect(renderedMath).not.toBe(math.querySelector('math'));
+    });
+
+    test('does not add a space before Chinese punctuation after math', () => {
+      const originalNode = document.getElementById('original');
+      const math = document.createElement('span');
+      math.className = 'ltx_Math';
+      math.textContent = 'π0.5';
+
+      window.LLMTranslate.Renderer.renderStructuredTranslation(originalNode, [
+        { text: '模型' },
+        { mathNode: math },
+        { text: '，能够泛化。' },
+      ]);
+
+      const target = document.querySelector('.llm-translate-target');
+      expect(target.textContent).toBe('模型 π0.5，能够泛化。');
+    });
+  });
+
   describe('renderError', () => {
     test('inserts an error div with error message', () => {
       const originalNode = document.getElementById('original');
