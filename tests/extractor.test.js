@@ -60,21 +60,50 @@ describe('collectTextNodes', () => {
     expect(nodes).toHaveLength(1);
     expect(nodes[0].textContent.trim()).toBe('Content');
   });
+
+  test('skips wrapper divs so translations stay near their original text blocks', () => {
+    document.body.innerHTML = `
+      <main>
+        <div id="page-wrapper">
+          <section>
+            <h1>AI Agents for every customer conversation</h1>
+            <p>Automate customer support and lead generation with Tars AI Agents.</p>
+          </section>
+          <article>
+            <h3>Improve resolution rate from day one</h3>
+            <p>Answer high-volume support queries with AI Agents trained on your data.</p>
+          </article>
+        </div>
+      </main>
+    `;
+
+    const nodes = getExtractor().collectTextNodes(document.querySelector('main'));
+    const ids = nodes.map(node => node.id).filter(Boolean);
+    const texts = nodes.map(node => node.textContent.trim());
+
+    expect(ids).not.toContain('page-wrapper');
+    expect(texts).toEqual([
+      'AI Agents for every customer conversation',
+      'Automate customer support and lead generation with Tars AI Agents.',
+      'Improve resolution rate from day one',
+      'Answer high-volume support queries with AI Agents trained on your data.',
+    ]);
+  });
 });
 
 // ── findMainContent ───────────────────────────────────────────────
 
 describe('findMainContent', () => {
-  test('returns <article> element if present', () => {
+  test('returns <article> element if no main is present', () => {
     document.body.innerHTML =
       '<div><p>Side content</p></div><article><p>Main article</p></article>';
     const result = getExtractor().findMainContent(document.body);
     expect(result.tagName).toBe('ARTICLE');
   });
 
-  test('returns <main> element if no article', () => {
+  test('returns <main> element before smaller article cards', () => {
     document.body.innerHTML =
-      '<div><p>Side content</p></div><main><p>Main content</p></main>';
+      '<article><p>Small card</p></article><main><p>Main content</p></main>';
     const result = getExtractor().findMainContent(document.body);
     expect(result.tagName).toBe('MAIN');
   });

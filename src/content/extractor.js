@@ -13,6 +13,22 @@
     'DIV',
   ]);
 
+  const BLOCK_TEXT_TAGS = new Set([
+    'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+    'LI', 'TD', 'TH', 'BLOCKQUOTE', 'FIGCAPTION', 'DD', 'DT', 'LABEL',
+  ]);
+
+  function hasBlockTextDescendant(node) {
+    for (const child of node.children) {
+      if (SKIP_TAGS.has(child.tagName)) continue;
+      if (BLOCK_TEXT_TAGS.has(child.tagName) && child.textContent.trim()) {
+        return true;
+      }
+      if (hasBlockTextDescendant(child)) return true;
+    }
+    return false;
+  }
+
   LLMTranslate.Extractor = {
     collectTextNodes(root) {
       const results = [];
@@ -26,6 +42,9 @@
             if (!TEXT_TAGS.has(node.tagName)) return NodeFilter.FILTER_SKIP;
             const text = node.textContent.trim();
             if (!text) return NodeFilter.FILTER_REJECT;
+            if (node.tagName === 'DIV' && hasBlockTextDescendant(node)) {
+              return NodeFilter.FILTER_SKIP;
+            }
             for (const child of node.children) {
               if (TEXT_TAGS.has(child.tagName) && child.textContent.trim() === text) {
                 return NodeFilter.FILTER_REJECT;
@@ -43,10 +62,10 @@
     },
 
     findMainContent(root) {
+      const main = root.querySelector('main, [role="main"]');
+      if (main) return main;
       const article = root.querySelector('article');
       if (article) return article;
-      const main = root.querySelector('main');
-      if (main) return main;
       const candidates = root.querySelectorAll('div, section');
       let best = root;
       let bestDensity = 0;
